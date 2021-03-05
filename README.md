@@ -1,5 +1,16 @@
 # COVID workplace simulation
-This code constructs and implements a SEIRS+ driven simulation. The simulation produces the percentage infected,  peak percentage hospitalized and fatality rate in office enviroments during a disease outbreak. The simulation is tuned to the disease parameters of the current COVID-19 pandemic but can be easily tweaked to study other (fictive)  diseases and the effect of certain interventions on the percentage infected, peak percentage hospitalized and fatality rate in office or other enviroments.
+This code constructs and implements a SEIRS driven simulation. The simulation produces the percentage infected,  peak percentage hospitalized and fatality rate in office enviroments during a disease outbreak. The simulation is tuned to the disease parameters of the current COVID-19 pandemic but can be easily tweaked to study other (fictive)  diseases and the effect of certain interventions on the percentage infected, peak percentage hospitalized and fatality rate in office or other enviroments. The code is an extension of the wonderful work that ryansmcgee performed. 
+
+## Overview
+
+#### Full documentation of this package's models, code, use cases, examples, and more can be found on [the wiki](https://github.com/ryansmcgee/seirsplus/wiki/)
+
+[**Basic SEIRS Model**](https://github.com/ryansmcgee/seirsplus/wiki/SEIRS-Model-Description) | [**Extended SEIRS Model**](https://github.com/ryansmcgee/seirsplus/wiki/Extended-SEIRS-Model-Description)
+:-----:|:-----:
+<img src="https://github.com/ryansmcgee/seirsplus/blob/master/images/BasicSEIRS_compartments_padded.png" width="400"> | <img src="https://github.com/ryansmcgee/seirsplus/blob/master/images/ExtSEIRS_compartments.png" width="400">
+[Model Description](https://github.com/ryansmcgee/seirsplus/wiki/SEIRS-Model-Description) | [Model Description](https://github.com/ryansmcgee/seirsplus/wiki/Extended-SEIRS-Model-Description)
+[`SEIRSNetworkModel` docs](https://github.com/ryansmcgee/seirsplus/wiki/SEIRSModel-class)<br>[`SEIRSModel` docs](https://github.com/ryansmcgee/seirsplus/wiki/SEIRSNetworkModel-class) | [`ExtSEIRSNetworkModel` docs](https://github.com/ryansmcgee/seirsplus/wiki/ExtSEIRSNetworkModel-class)
+[Basic SEIRS Mean-field Model Demo](https://github.com/ryansmcgee/seirsplus/blob/master/examples/Basic_SEIRS_Meanfield_Model_Demo.ipynb)<br>[Basic SEIRS Network Model Demo](https://github.com/ryansmcgee/seirsplus/blob/master/examples/Extended_SEIRS_Community_TTI_Demo.ipynb)<br>[Extended SEIRS Workplace TTI Demo](https://github.com/ryansmcgee/seirsplus/blob/master/examples/Extended_SEIRS_Workplace_TTI_Demo.ipynb)
 
 
 ### SEIRS Dynamics
@@ -27,3 +38,8 @@ The effect of isolation-based interventions (e.g., isolating individuals in resp
 </p>
 
 <a name="model-network"></a>
+
+
+### Possible implementations of the code
+
+The code can be modified to your own liking to simulate situations that are tailored to your research. Parameters are based on literature but can be tweaked if literature is outdated or own found literature gives reason to doubt about chosen parameters. The disease parameters are specified for the COVID-19 virus but can be varied to research different diseases in a working enviroment.
