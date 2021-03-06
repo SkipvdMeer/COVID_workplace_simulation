@@ -10,8 +10,6 @@ This code constructs and implements a SEIRS driven simulation. The simulation pr
 <img src="https://github.com/ryansmcgee/seirsplus/blob/master/images/BasicSEIRS_compartments_padded.png" width="400"> | <img src="https://github.com/ryansmcgee/seirsplus/blob/master/images/ExtSEIRS_compartments.png" width="400">
 [Model Description](https://github.com/ryansmcgee/seirsplus/wiki/SEIRS-Model-Description) | [Model Description](https://github.com/ryansmcgee/seirsplus/wiki/Extended-SEIRS-Model-Description)
 [`SEIRSNetworkModel` docs](https://github.com/ryansmcgee/seirsplus/wiki/SEIRSModel-class)<br>[`SEIRSModel` docs](https://github.com/ryansmcgee/seirsplus/wiki/SEIRSNetworkModel-class) | [`ExtSEIRSNetworkModel` docs](https://github.com/ryansmcgee/seirsplus/wiki/ExtSEIRSNetworkModel-class)
-[Basic SEIRS Mean-field Model Demo](https://github.com/ryansmcgee/seirsplus/blob/master/examples/Basic_SEIRS_Meanfield_Model_Demo.ipynb)<br>[Basic SEIRS Network Model Demo](https://github.com/ryansmcgee/seirsplus/blob/master/examples/Extended_SEIRS_Community_TTI_Demo.ipynb)<br>[Extended SEIRS Workplace TTI Demo](https://github.com/ryansmcgee/seirsplus/blob/master/examples/Extended_SEIRS_Workplace_TTI_Demo.ipynb)
-
 
 ### SEIRS Dynamics
 
