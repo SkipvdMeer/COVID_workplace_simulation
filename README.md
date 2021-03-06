@@ -1,5 +1,5 @@
 # COVID workplace simulation
-This code constructs and implements a SEIRS driven simulation. The simulation produces the percentage infected,  peak percentage hospitalized and fatality rate in office enviroments during a disease outbreak. The simulation is tuned to the disease parameters of the current COVID-19 pandemic but can be easily tweaked to study other (fictive)  diseases and the effect of certain interventions on the percentage infected, peak percentage hospitalized and fatality rate in office or other enviroments. The code is an extension of the wonderful work that ryansmcgee performed. 
+This code constructs and implements a SEIRS driven simulation. The simulation produces the percentage infected,  peak percentage hospitalized and fatality rate in office enviroments during a disease outbreak. The simulation is tuned to the disease parameters of the current COVID-19 pandemic but can be easily tweaked to study other (fictive)  diseases and the effect of certain interventions on the percentage infected, peak percentage hospitalized and fatality rate in office or other enviroments. The code is an extension of the amazing work that ryansmcgee performed. 
 
 ## Overview
 
