@@ -1,0 +1,88 @@
+
+### Load libraries  
+```{r, Libraries, include = FALSE}
+rm(list=ls())
+
+# Load Required Packages
+all_installed_packaged <- installed.packages()[, "Package"]
+# Install any missing, but required packages
+if (!"dplyr" %in% all_installed_packaged) {
+  install.packages("dplyr")
+}
+
+if (!"tidyverse" %in% all_installed_packaged) {
+  install.packages("tidyverse")
+}
+
+if (!"ggplot2" %in% all_installed_packaged) {
+  install.packages("ggplot2")
+}
+
+if (!"effsize" %in% all_installed_packaged) {
+  install.packages("effsize")
+}
+
+if (!"" %in% all_installed_packaged) {
+  install.packages("")
+}
+
+
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(effsize)
+```
+
+
+```{r}
+# Load data
+combined_data_replication <- read.csv("Replication_Combined_Dataset_thesis.csv")
+final_data_replication <- read.csv("Replication_Full_Dataset_thesis.csv")
+
+# Remove X column 
+final_data_replication <- final_data_replication[,-1]
+combined_data_replication <- combined_data_replication[,-1]
+
+# Rename variables as factors for final data
+final_data_replication$Network.size <- as.factor(final_data_replication$Network.size) 
+final_data_replication$Bubble.size <- as.factor(final_data_replication$Bubble.size) 
+final_data_replication$PCR.frequency <- as.factor(final_data_replication$PCR.frequency) 
+final_data_replication$R <- as.factor(final_data_replication$R)
+
+# Rename variables as factors for combined data
+combined_data_replication$Network.size <- as.factor(combined_data_replication$Network.size) 
+combined_data_replication$Bubble.size <- as.factor(combined_data_replication$Bubble.size) 
+combined_data_replication$PCR.frequency <- as.factor(combined_data_replication$PCR.frequency) 
+combined_data_replication$R <- as.factor(combined_data_replication)
+
+# Make a proportion out of percentage infected for final data
+final_data_replication$Percentage.infected <- (final_data_replication$Percentage.infected/100)
+
+# Rename percentage infected to proportion infected
+final_data_replication <- final_data_replication %>%
+  dplyr::rename(Proportion.infected = Percentage.infected)
+
+
+# Do the same for the sd of final data
+final_data_replication$sd <- (final_data_replication$sd/100)
+
+# Round Means for final data
+final_data_replication$Proportion.infected <- round(final_data_replication$Proportion.infected, 2)
+
+# Round Means for combined data
+combined_data_replication$Percentage.infected <- round(combined_data_replication$Percentage.infected, 2)
+
+# Check if succeeded
+final_data_replication
+combined_data_replication
+```
+
+# Calculate percentage reduction to compare with Chin et al. (2020)
+```{r}
+data <- final_data_replication %>%
+    group_by(PCR.frequency) %>%
+    dplyr::summarize(Mean = mean(Proportion.infected, na.rm=TRUE))
+
+data %>%
+  mutate(difference = (Mean/XXXX))
+```
