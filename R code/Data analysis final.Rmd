@@ -1,0 +1,648 @@
+
+### Load libraries  
+```{r, Libraries, include = FALSE}
+rm(list=ls())
+
+# Load Required Packages
+all_installed_packaged <- installed.packages()[, "Package"]
+# Install any missing, but required packages
+if (!"dplyr" %in% all_installed_packaged) {
+  install.packages("dplyr")
+}
+
+if (!"tidyverse" %in% all_installed_packaged) {
+  install.packages("tidyverse")
+}
+
+if (!"ggplot2" %in% all_installed_packaged) {
+  install.packages("ggplot2")
+}
+
+if (!"effsize" %in% all_installed_packaged) {
+  install.packages("effsize")
+}
+
+if (!"" %in% all_installed_packaged) {
+  install.packages("")
+}
+
+
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(effsize)
+```
+
+### Prepare the datasets  
+```{r}
+final_data <- read.csv('Full_Dataset_thesis_final.csv')
+combined_data <- read.csv('Combined_Dataset_thesis_final.csv')
+
+
+# Remove X column for combined_data
+combined_data <- combined_data[,-1]
+
+# Rename variables as factors for final data
+final_data$Network.size <- as.factor(final_data$Network.size) 
+final_data$Bubble.size <- as.factor(final_data$Bubble.size) 
+final_data$PCR.frequency <- as.factor(final_data$PCR.frequency) 
+final_data$R <- as.factor(final_data$R)
+
+# Rename variables as factors for combined data
+combined_data$Network.size <- as.factor(combined_data$Network.size) 
+combined_data$Bubble.size <- as.factor(combined_data$Bubble.size) 
+combined_data$PCR.frequency <- as.factor(combined_data$PCR.frequency) 
+combined_data$R <- as.factor(combined_data$R)
+
+# Make a proportion out of percentage infected for final data
+final_data$Percentage.infected <- (final_data$Percentage.infected/100)
+
+# Rename percentage infected to proportion infected
+final_data <- final_data %>%
+  dplyr::rename(Proportion.infected = Percentage.infected)
+
+#Rename Semi-weekly
+final_data$PCR.frequency <- gsub("semiweekly", "semi-weekly", final_data$PCR.frequency)
+combined_data$PCR.frequency <- gsub("semiweekly", "semi-weekly", combined_data$PCR.frequency)
+
+# Do the same for the sd of final data
+final_data$sd <- (final_data$sd/100)
+
+# Round Means for final data
+final_data$Proportion.infected <- round(final_data$Proportion.infected, 2)
+
+# Round Means for combined data
+combined_data$Percentage.infected <- round(combined_data$Percentage.infected, 2)
+
+# Check if succeeded
+final_data
+combined_data
+```
+
+
+### Visual inspection of the data  
+#   Plot distributions  
+```{r}
+# create lists for all unique values of Network size & R
+x <- unique(final_data$Network.size)
+y <- unique(final_data$R)
+
+# Loop to get barcharts for every combination of Network size & R
+for (i in 1:length(x)){
+  for (j in 1:length(y)) {
+    plot_data = final_data %>%
+      filter(Network.size == x[i] & R == y[j]) 
+  
+  # Order Bubble size & PCR frequency in a logical way    
+  plot_data$Bubble.size <- factor(plot_data$Bubble.size, levels=c("5", "10", "25", "50", "none"))
+  plot_data$PCR.frequency <- factor(plot_data$PCR.frequency, levels = c("workday", "semi-weekly", "weekly", "monthly",
+                                                                        "none"))
+
+  # Make the plot
+  plot = ggplot(plot_data, aes(x = Bubble.size, y = Proportion.infected, fill = PCR.frequency)) +
+  geom_bar(stat = 'identity', position = position_dodge(), color="black") +
+  geom_errorbar(aes(ymin=Proportion.infected, ymax=Proportion.infected+sd), width=.2, position=position_dodge(.9)) +
+  scale_fill_manual(values = c("#fff5a5", "#ffaa64", "#ff8264", "#c25e00", "#B31D1D")) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  ggtitle(paste('Network size = ', x[i], '&', 'R =', y[j])) +
+  labs(y = "Proportion infected", x = 'Bubble size') +
+  guides(fill=guide_legend(title="PCR frequency")) +
+  theme(legend.position="top") 
+
+  print(plot)
+  }
+}
+```
+
+
+### Create function to make table of effectsizes (Cohens' D)  
+```{r}
+Effectsize <- function(Network.size, R){
+
+# Creating data frame to store values in
+effectsize.table <- data.frame(Network_size = NA, Bubble_size = NA, PCR_frequency = NA, R = NA, Effect_size = NA,
+                               Magnitude = NA)
+
+
+# Specifying parameters for the for loop
+Network.size = c(Network.size)
+Bubble.size = c(5, 10, 25, 50, 'none')
+PCR.frequency = c("none", "workday", "semi-weekly", "weekly", "monthly")
+R = c(R)
+
+
+
+for (i in 1:length(Network.size)) {
+  for (j in 1:length(Bubble.size)) {
+    for (k in 1:length(PCR.frequency)) {
+      for (l in 1:length(R)) {
+        
+
+        w <- Network.size[i]
+        x <- Bubble.size[j]
+        y <- PCR.frequency[k]
+        z <- R[l]
+        
+                
+        # Get values of control condition 
+        control <- combined_data %>% 
+          filter(Network.size == w & PCR.frequency == "none" & Bubble.size == "none" & R == z)
+        
+        # store them
+        control <- control$Percentage.infected
+        
+        
+        # Get values of treatment condition
+        treatment <- combined_data %>%
+        filter(Network.size == w & Bubble.size == x & PCR.frequency == y & R == z)
+
+        # store them
+        treatment <- treatment$Percentage.infected
+        
+        # Calculate Cohens' D  
+        Effect_size = cohen.d(control, treatment)
+        
+        # Set all variables in data frame
+        x <- data.frame(Network_size = Network.size[i], Bubble_size = Bubble.size[j], PCR_frequency = PCR.frequency[k],
+                        R = R[l], Effect_size = Effect_size$estimate, Magnitude = Effect_size$magnitude)
+        
+        # Store it in combined data frame
+        effectsize.table <- rbind(effectsize.table, x)
+        }
+      }
+    }
+  }
+        # Show data frame without the NA row
+        effectsize.table <- na.omit(effectsize.table)
+        
+        # Round effectsize to 2 decimals
+        effectsize.table$Effect_size <- round(effectsize.table$Effect_size, 2)
+        
+        # Return effect size table
+        print(effectsize.table)
+
+}
+
+```
+
+
+### Loop to create effectsize table for every combination of Network size & R  
+```{r}
+# Specify parameters
+Network.size = c(20, 50, 100, 250, 500, 1000)
+R = c(1, 1.5, 2, 2.5, 3)
+
+# Loop
+for (i in 1:length(Network.size)) {
+  for (j in 1:length(R)) {
+    Effectsize(Network.size = Network.size[i], R = R[j])
+  }
+}
+
+```
+
+
+### Fit Full model  
+```{r}
+# Fitting the model
+mod <- glm(Proportion.infected ~ Network.size  + Bubble.size + PCR.frequency + R, final_data,
+           family = binomial(link = "logit"))
+
+# Calculate Pseudo R2 for the model
+pR2 = 1 - mod$deviance / mod$null.devianc
+pR2
+```
+
+
+
+
+### Main hypothesis:  
+##  What is the impact of combining contact network interventions on the transmission of COVID-19 in the workplace?  
+```{r}
+# Fitting the model with interaction
+mod <- glm(Proportion.infected ~ Bubble.size + PCR.frequency + Bubble.size*PCR.frequency, final_data,
+           family = binomial(link = "logit"))
+
+# Calculate Pseudo R2 for the model
+pR2 = 1 - mod$deviance / mod$null.devianc
+pR2
+```   
+
+```{r}
+# Fitting the model without interaction
+mod <- glm(Proportion.infected ~ Bubble.size + PCR.frequency, final_data, family = binomial(link = "logit"))
+
+
+# Calculate Pseudo R2 for the model
+pR2 = 1 - mod$deviance / mod$null.devianc
+pR2
+```
+
+
+
+### Plot for impact of combining interventions  
+```{r}
+data <- final_data %>%
+  group_by(Network.size, PCR.frequency, Bubble.size) %>%
+  dplyr::summarize(Mean = mean(Proportion.infected, na.rm=TRUE)) 
+
+# Order factors
+data$PCR.frequency <- factor(data$PCR.frequency, levels = c("workday", "semi-weekly", "weekly", "monthly",
+                                                                        "none"))
+data$Bubble.size <- factor(data$Bubble.size, levels = c("5", "10", "25", "50", "none"))
+# Create plot
+ggplot(data, aes(x = Bubble.size, y = Mean, fill = PCR.frequency)) +
+  stat_boxplot(geom ='errorbar') + 
+  geom_boxplot() +
+  theme_bw() +
+  theme(legend.position="top", legend.title = element_text(size = 12),
+        legend.text = element_text(size = 12)) +
+  scale_fill_manual(values = c("#fff5a5", "#ffaa64", "#ff8264", "#c25e00", "#B31D1D")) +
+  labs(x = 'Bubble size', y = 'Proportion infected') +
+  labs(fill = 'PCR frequency') 
+```
+
+
+
+### Subhypothesis 1:  
+##  What is the impact of creating bubbles in the contact network on the transmission of COVID-19 in the workplace?  
+```{r}
+# Fitting the model
+mod <- glm(Proportion.infected ~ Bubble.size, final_data, family = binomial(link = "logit"))
+
+
+# Calculate Pseudo R2 for the model
+pR2 = 1 - mod$deviance / mod$null.devianc
+pR2
+```
+
+## Does the size of the bubble impact the effect of the intervention?
+```{r, fig.height=18, fig.width=28}
+data = combined_data %>% filter(PCR.frequency == 'none') %>%
+  group_by(Network.size, Bubble.size, PCR.frequency, R)
+
+# Make a proportion out of percentage infected for final data
+data$Percentage.infected <- (data$Percentage.infected/100)
+
+# Rename percentage infected to proportion infected
+data <- data %>%
+  dplyr::rename(Proportion.infected = Percentage.infected)
+
+# Set Bubble size in right order for the plot
+data$Bubble.size <- factor(data$Bubble.size, levels=c("5", "10", "25", "50", "none"))
+
+
+# Create plot
+ggplot(data=data, aes(x = Network.size, y = Proportion.infected, fill = Bubble.size)) +
+  stat_boxplot(geom ='errorbar', size = 1, position=position_dodge(.9)) + 
+  geom_boxplot(size = 1, position=position_dodge(.9)) +
+  theme_bw() +
+  labs(x = 'Network size', y = 'Proportion infected') + 
+  theme(legend.position="top", legend.title = element_text(size = 35),
+        legend.text = element_text(size = 35), axis.text=element_text(size=25),
+        axis.title=element_text(size=20), strip.text = element_text(size=30),
+        axis.title.x = element_text(size = 35), axis.title.y = element_text(size = 35)) +
+  facet_wrap(vars(R), ncol=3, labeller = labeller(R = 
+    c("1" = "R0 = 1",
+      "1.5" = "R0 = 1.5",
+      "2" = "R0 = 2",
+      "2.5" = "R0 = 2.5",
+      "3" = "R0 = 3"))) +
+  labs(x = 'Network size', y = 'Proportion infected') +
+  labs(fill= "Bubble size") +
+  stat_summary(fun=mean, geom="point", size=4, position=position_dodge(.9))
+
+```
+
+
+## Does the size of the network impact the effect of the intervention?
+```{r}
+# Fitting the model with interaction
+mod <- glm(Proportion.infected ~ Bubble.size + Network.size + Bubble.size*Network.size, final_data,
+           family = binomial(link = "logit"))
+
+
+# Calculate Pseudo R2 for the model
+pR2 = 1 - mod$deviance / mod$null.devianc
+pR2
+```
+
+
+```{r}
+# Fitting the model without interaction
+mod <- glm(Proportion.infected ~ Bubble.size + Network.size, final_data, family = binomial(link = "logit"))
+
+# Calculate Pseudo R2 for the model
+pR2 = 1 - mod$deviance / mod$null.devianc
+pR2
+```
+
+
+#  Calculate Pseudo R2 for every network size and put data in a table
+#  plot the table
+```{r}
+# Values of Network size
+unique(final_data$Network.size)
+
+# Create empty table
+table <- data.frame(Network_size = NA, Pseudo_R2 = NA)
+
+# Implement here
+Network_size = c(20, 50, 100, 250, 500, 1000)
+
+# Create loop to calculate psuedo R2 for every netsize
+for (i in 1:length(Network_size)) {
+  test <- final_data %>% filter(Network.size == Network_size[i])
+
+  # Fitting the model
+  mod <- glm(Proportion.infected ~ Bubble.size, test, family = binomial(link = "logit"))
+
+  # Calculate Pseudo R2 for the model
+  pR2 = 1 - mod$deviance / mod$null.devianc
+  # Return value
+  print(pR2)
+  
+  
+  # Set all variables in data frame
+  x <- data.frame(Network_size = Network_size[i], Pseudo_R2 = pR2)
+        
+  # Store it in combined data frame
+  table <- rbind(table, x)
+}
+# Omit NA's
+table <- na.omit(table)
+table
+```
+
+
+
+
+### Subhypothesis 2:
+##  What is the impact of PCR-testing on the transmission of COVID-19 in the workplace?
+#   Does the frequency of testing matter (Refer to effectsizes)
+```{r}
+# Fitting the model
+mod <- glm(Proportion.infected ~ PCR.frequency, final_data, family = binomial(link = "logit"))
+
+
+# Calculate Pseudo R2 for the model
+pR2 = 1 - mod$deviance / mod$null.devianc
+pR2
+```
+# Calculate percentage reduction to compare with Chin et al. (2020)
+# Averaged over all R's
+```{r}
+data <- final_data %>%
+  filter(Bubble.size == 'none') %>%
+    group_by(PCR.frequency) %>%
+    dplyr::summarize(Mean = mean(Proportion.infected, na.rm=TRUE),
+                                 sd = sd(Proportion.infected))
+
+data %>%
+  mutate(difference = (Mean/0.619333))
+
+1-.93756
+1-.73989
+1-.60226
+1-.48385
+```
+
+# Calculate percentage reduction to compare with Chin et al. (2020)
+# R is 2.5
+```{r}
+data <- final_data %>%
+  filter(Bubble.size == 'none' &  R == 2.5) %>%
+    group_by(PCR.frequency) %>%
+    dplyr::summarize(Mean = mean(Proportion.infected, na.rm=TRUE))
+
+data %>%
+  mutate(difference = (Mean/0.7683333))
+
+1- .9154
+1- .7635
+1- .6001
+1- .4577
+```
+
+
+# Create plot PCR frequency  
+```{r, fig.height=18, fig.width=28}
+data = combined_data %>% filter(Bubble.size == 'none') %>%
+  group_by(Network.size, Bubble.size, PCR.frequency, R)
+
+# Make a proportion out of percentage infected for final data
+data$Percentage.infected <- (data$Percentage.infected/100)
+
+# Rename percentage infected to proportion infected
+data <- data %>%
+  dplyr::rename(Proportion.infected = Percentage.infected)
+
+
+# Set PCR frequency is right order for plot
+data$PCR.frequency <- factor(data$PCR.frequency, levels = c("workday", "semi-weekly", "weekly", "monthly",
+                                                                        "none"))
+
+# Create plot
+ggplot(data=data, aes(x = Network.size, y = Proportion.infected, fill = PCR.frequency)) +
+  stat_boxplot(geom ='errorbar', size = 1, position=position_dodge(.9)) + 
+  geom_boxplot(size = 1, position=position_dodge(.9)) +
+  theme_bw() +
+  labs(x = 'Network size', y = 'Proportion infected') + 
+  theme(legend.position="top", legend.title = element_text(size = 35),
+        legend.text = element_text(size = 35), axis.text=element_text(size=25),
+        axis.title=element_text(size=20), strip.text = element_text(size=30),
+        axis.title.x = element_text(size = 35), axis.title.y = element_text(size = 35)) +
+  facet_wrap(vars(R), ncol=3, labeller = labeller(R = 
+    c("1" = "R0 = 1",
+      "1.5" = "R0 = 1.5",
+      "2" = "R0 = 2",
+      "2.5" = "R0 = 2.5",
+      "3" = "R0 = 3"))) +
+  labs(fill ='PCR frequency') +
+  stat_summary(fun=mean, geom="point", size=4, position=position_dodge(.9))
+```
+
+
+## Does the size of the network impact the effect of the intervention?
+```{r}
+# Fitting the model with interaction
+mod <- glm(Proportion.infected ~ PCR.frequency + Network.size + PCR.frequency*Network.size, final_data,
+           family = binomial(link = "logit"))
+
+
+# Calculate Pseudo R2 for the model
+pR2 = 1 - mod$deviance / mod$null.devianc
+pR2
+```
+
+```{r}
+# Fitting the model without interaction
+mod <- glm(Proportion.infected ~ PCR.frequency + Network.size, final_data, family = binomial(link = "logit"))
+
+# Calculate Pseudo R2 for the model
+pR2 = 1 - mod$deviance / mod$null.devianc
+pR2
+```
+
+
+#  Calculate Pseudo R2 for every network size and put data in a table
+#  plot the table
+```{r}
+# Values of Network size
+unique(final_data$Network.size)
+
+# Create empty table
+table <- data.frame(Network_size = NA, Pseudo_R2 = NA)
+
+# Implement here
+Network_size = c(20, 50, 100, 250, 500, 1000)
+
+# Create loop to calculate psuedo R2 for every netsize
+for (i in 1:length(Network_size)) {
+  test <- final_data %>% filter(Network.size == Network_size[i])
+
+  # Fitting the model
+  mod <- glm(Proportion.infected ~ PCR.frequency, test, family = binomial(link = "logit"))
+
+  # Calculate Pseudo R2 for the model
+  pR2 = 1 - mod$deviance / mod$null.devianc
+  # Return value
+  print(pR2)
+  
+  
+  # Set all variables in data frame
+  x <- data.frame(Network_size = Network_size[i], Pseudo_R2 = pR2)
+        
+  # Store it in combined data frame
+  table <- rbind(table, x)
+}
+# Omit NA's
+table <- na.omit(table)
+table
+```
+
+
+ 
+### Subhypothesis 3:  
+##   How do different effective R’s (which can encode other measures such as wearing face masks) change these impacts?  
+##   Effect sizes  
+```{r}
+# Fitting the model
+mod <- glm(Proportion.infected ~ R, final_data, family = binomial(link = "logit"))
+
+# Calculate Pseudo R2 for the model
+pR2 = 1 - mod$deviance / mod$null.devianc
+pR2
+```
+
+
+
+#  Calculate Pseudo R2 of Bubble size for every R and put data in a table  
+#  plot the table  
+```{r}
+# Values of Network size
+unique(final_data$Network.size)
+
+# Create empty table
+table <- data.frame(R = NA, Pseudo_R2 = NA)
+
+# Implement here
+R = c(1, 1.5, 2, 2.5, 3)
+
+# Create loop to calculate psuedo R2 for every netsize
+for (i in 1:length(R)) {
+  test <- final_data %>% filter(R == R[i])
+
+  # Fitting the model
+  mod <- glm(Proportion.infected ~ Bubble.size, test, family = binomial(link = "logit"))
+
+  # Calculate Pseudo R2 for the model
+  pR2 = 1 - mod$deviance / mod$null.devianc
+  # Return value
+  print(pR2)
+  
+  
+  # Set all variables in data frame
+  x <- data.frame(R = R[i], Pseudo_R2 = pR2)
+        
+  # Store it in combined data frame
+  table <- rbind(table, x)
+}
+# Omit NA's
+table <- na.omit(table)
+table
+```
+
+
+# Calculate Pseudo R2 of PCR frequency for every R and put data in a table  
+# plot the table  
+```{r}
+# Values of Network size
+unique(final_data$Network.size)
+
+# Create empty table
+table <- data.frame(R = NA, Pseudo_R2 = NA)
+
+# Implement here
+R = c(1, 1.5, 2, 2.5, 3)
+
+# Create loop to calculate psuedo R2 for every netsize
+for (i in 1:length(R)) {
+  test <- final_data %>% filter(R == R[i])
+
+  # Fitting the model
+  mod <- glm(Proportion.infected ~ PCR.frequency, test, family = binomial(link = "logit"))
+
+  # Calculate Pseudo R2 for the model
+  pR2 = 1 - mod$deviance / mod$null.devianc
+  # Return value
+  print(pR2)
+  
+  
+  # Set all variables in data frame
+  x <- data.frame(R = R[i], Pseudo_R2 = pR2)
+        
+  # Store it in combined data frame
+  table <- rbind(table, x)
+}
+# Omit NA's
+table <- na.omit(table)
+table
+```
+
+
+# Chunk to get a complete dataframe of all Effect sizes, when PCR frequency = none, and plot these  
+```{r, fig.height=6, fig.width=12}
+data <- combined_data %>%
+  filter(PCR.frequency == 'none' & Bubble.size == 'none') %>%
+  group_by(Network.size, Bubble.size, PCR.frequency, R) 
+
+
+data$Percentage.infected <- (data$Percentage.infected/100)
+
+ggplot(data, aes(x = Network.size, y = Percentage.infected, fill = Network.size)) +
+  stat_boxplot(geom ='errorbar') + 
+  geom_boxplot() +
+  facet_grid(~R, labeller = labeller(R = 
+    c("1" = "R0 = 1",
+      "1.5" = "R0 = 1.5",
+      "2" = "R0 = 2",
+      "2.5" = "R0 = 2.5",
+      "3" = "R0 = 3"))) +
+  theme_bw() +
+  theme(legend.position="top", legend.title = element_text(size = 15),
+        legend.text = element_text(size = 15), axis.text=element_text(size=10),
+        axis.title=element_text(size=15), strip.text = element_text(size=15),
+        axis.title.x = element_text(size = 15), axis.title.y = element_text(size = 15)) +
+  labs(x = 'Network size', y = 'Proportion infected') +
+  labs(fill = 'Network size') +
+  stat_summary(fun=mean, geom="point", size=3)
+```
+
+
+
+
+
+
+

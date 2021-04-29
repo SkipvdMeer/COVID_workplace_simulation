@@ -1,0 +1,452 @@
+
+### Load libraries  
+```{r, Libraries, include = FALSE}
+rm(list=ls())
+
+# Load Required Packages
+all_installed_packaged <- installed.packages()[, "Package"]
+# Install any missing, but required packages
+if (!"dplyr" %in% all_installed_packaged) {
+  install.packages("dplyr")
+}
+
+if (!"tidyverse" %in% all_installed_packaged) {
+  install.packages("tidyverse")
+}
+
+if (!"ggplot2" %in% all_installed_packaged) {
+  install.packages("ggplot2")
+}
+
+if (!"effsize" %in% all_installed_packaged) {
+  install.packages("effsize")
+}
+
+if (!"" %in% all_installed_packaged) {
+  install.packages("")
+}
+
+
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(effsize)
+```
+
+### Load selftest data
+```{r}
+# Load data
+combined_data_selftest <- read.csv("Combined_dataset_selftest_final.csv")
+final_data_selftest <- read.csv("full_dataset_selftest_final.csv")
+
+# Rename proportion to mean
+final_data_selftest <- final_data_selftest %>%
+  dplyr::rename(mean = Percentage.infected)
+
+# Remove X column 
+combined_data_selftest <- combined_data_selftest[,-1]
+
+# Rename variables as factors for final data
+final_data_selftest$Network.size <- as.factor(final_data_selftest$Network.size) 
+final_data_selftest$Bubble.size <- as.factor(final_data_selftest$Bubble.size) 
+final_data_selftest$PCR.frequency <- as.factor(final_data_selftest$PCR.frequency) 
+final_data_selftest$R <- as.factor(final_data_selftest$R)
+
+# Rename variables as factors for combined data
+combined_data_selftest$Network.size <- as.factor(combined_data_selftest$Network.size) 
+combined_data_selftest$Bubble.size <- as.factor(combined_data_selftest$Bubble.size) 
+combined_data_selftest$PCR.frequency <- as.factor(combined_data_selftest$PCR.frequency) 
+combined_data_selftest$R <- as.factor(combined_data_selftest$R)
+
+# Make a proportion out of percentage infected for final data
+final_data_selftest$mean <- (final_data_selftest$mean/100)
+
+# Rename percentage infected to proportion infected
+final_data_selftest <- final_data_selftest %>%
+  dplyr::rename(Proportion.infected = mean)
+
+#Rename Semiweekly
+final_data_selftest$PCR.frequency <- gsub("semiweekly", "semi-weekly", final_data_selftest$PCR.frequency)
+combined_data_selftest$PCR.frequency <- gsub("semiweekly", "semi-weekly", combined_data_selftest$PCR.frequency)
+
+# Do the same for the sd of final data
+final_data_selftest$sd <- (final_data_selftest$sd/100)
+
+# Round Means for final data
+final_data_selftest$Proportion.infected <- round(final_data_selftest$Proportion.infected, 2)
+
+# Round Means for combined data
+combined_data_selftest$Percentage.infected <- round(combined_data_selftest$Percentage.infected, 2)
+
+# Check if succeeded
+final_data_selftest
+combined_data_selftest
+```
+
+### Create function to make table of effectsizes (Cohens' D)  
+```{r}
+Effectsize <- function(Network.size, R){
+
+# Creating data frame to store values in
+effectsize.table <- data.frame(Network_size = NA, Bubble_size = NA, PCR_frequency = NA, R = NA, Effect_size = NA,
+                               Magnitude = NA)
+
+
+# Specifying parameters for the for loop
+Network.size = c(Network.size)
+Bubble.size = c(5, 10, 25, 50, 'none')
+PCR.frequency = c("none", "workday", "semi-weekly", "weekly", "monthly")
+R = c(R)
+
+
+
+for (i in 1:length(Network.size)) {
+  for (j in 1:length(Bubble.size)) {
+    for (k in 1:length(PCR.frequency)) {
+      for (l in 1:length(R)) {
+        
+
+        w <- Network.size[i]
+        x <- Bubble.size[j]
+        y <- PCR.frequency[k]
+        z <- R[l]
+        
+                
+        # Get values of control condition 
+        control <- combined_data_selftest %>% 
+          filter(Network.size == w & PCR.frequency == "none" & Bubble.size == "none" & R == z)
+        
+        # store them
+        control <- control$Percentage.infected
+        
+        
+        # Get values of treatment condition
+        treatment <- combined_data_selftest %>%
+        filter(Network.size == w & Bubble.size == x & PCR.frequency == y & R == z)
+
+        # store them
+        treatment <- treatment$Percentage.infected
+        
+        # Calculate Cohens' D  
+        Effect_size = cohen.d(control, treatment)
+        
+        # Set all variables in data frame
+        x <- data.frame(Network_size = Network.size[i], Bubble_size = Bubble.size[j], PCR_frequency = PCR.frequency[k],
+                        R = R[l], Effect_size = Effect_size$estimate, Magnitude = Effect_size$magnitude)
+        
+        # Store it in combined data frame
+        effectsize.table <- rbind(effectsize.table, x)
+        }
+      }
+    }
+  }
+        # Show data frame without the NA row
+        effectsize.table <- na.omit(effectsize.table)
+        
+        # Round effectsize to 2 decimals
+        effectsize.table$Effect_size <- round(effectsize.table$Effect_size, 2)
+        
+        # Return effect size table
+        print(effectsize.table)
+
+}
+
+```
+
+
+### Loop to create effectsize table for self administered data 
+```{r}
+# Specify parameters
+Network.size = c(20, 50, 100, 250)
+R = c(1, 1.5, 2, 2.5)
+
+# Loop
+for (i in 1:length(Network.size)) {
+  for (j in 1:length(R)) {
+    Effectsize(Network.size = Network.size[i], R = R[j])
+  }
+}
+
+```
+
+
+### hypothesis:
+##  What is the impact of self administered testing the transmission of COVID-19 in the workplace?
+#   Does the frequency of testing matter (Refer to effectsizes)
+```{r}
+# Fitting the model
+mod <- glm(Proportion.infected ~ PCR.frequency, final_data_selftest, family = binomial(link = "logit"))
+
+
+# Calculate Pseudo R2 for the model
+pR2 = 1 - mod$deviance / mod$null.devianc
+pR2
+```
+
+#  Calculate Pseudo R2 for every network size and put data in a table
+#  plot the table
+```{r}
+# Values of Network size
+unique(final_data_selftest$Network.size)
+
+# Create empty table
+table <- data.frame(Network_size = NA, Pseudo_R2 = NA)
+
+# Implement here
+Network_size = c(20, 50, 100, 250)
+
+# Create loop to calculate psuedo R2 for every netsize
+for (i in 1:length(Network_size)) {
+  test <- final_data_selftest %>% filter(Network.size == Network_size[i])
+
+  # Fitting the model
+  mod <- glm(Proportion.infected ~ PCR.frequency, test, family = binomial(link = "logit"))
+
+  # Calculate Pseudo R2 for the model
+  pR2 = 1 - mod$deviance / mod$null.devianc
+  # Return value
+  print(pR2)
+  
+  
+  # Set all variables in data frame
+  x <- data.frame(Network_size = Network.size[i], Pseudo_R2 = pR2)
+        
+  # Store it in combined data frame
+  table <- rbind(table, x)
+}
+# Omit NA's
+table <- na.omit(table)
+table
+```
+
+# Load administered test data
+```{r}
+Combined_dataset_administered_test <- read.csv("Combined_dataset_administered_test_final.csv")
+Full_dataset_administered_test <- read.csv("full_dataset_administered_test_final.csv")
+
+
+Full_dataset_administered_test <- Full_dataset_administered_test %>%
+  dplyr::rename(mean = Percentage.infected)
+
+
+# Remove X column 
+Combined_dataset_administered_test <- Combined_dataset_administered_test[,-1]
+
+# Rename variables as factors for final data
+Full_dataset_administered_test$Network.size <- as.factor(Full_dataset_administered_test$Network.size) 
+Full_dataset_administered_test$Bubble.size <- as.factor(Full_dataset_administered_test$Bubble.size) 
+Full_dataset_administered_test$PCR.frequency <- as.factor(Full_dataset_administered_test$PCR.frequency) 
+Full_dataset_administered_test$R <- as.factor(Full_dataset_administered_test$R)
+
+# Rename variables as factors for combined data
+Combined_dataset_administered_test$Network.size <- as.factor(Combined_dataset_administered_test$Network.size) 
+Combined_dataset_administered_test$Bubble.size <- as.factor(Combined_dataset_administered_test$Bubble.size) 
+Combined_dataset_administered_test$PCR.frequency <- as.factor(Combined_dataset_administered_test$PCR.frequency) 
+Combined_dataset_administered_test$R <- as.factor(Combined_dataset_administered_test$R)
+
+# Make a proportion out of percentage infected for final data
+Full_dataset_administered_test$mean <- (Full_dataset_administered_test$mean/100)
+
+# Rename percentage infected to proportion infected
+Full_dataset_administered_test <- Full_dataset_administered_test %>%
+  dplyr::rename(Proportion.infected = mean)
+
+#Rename Semiweekly
+Full_dataset_administered_test$PCR.frequency <- gsub("semiweekly", "semi-weekly",
+                                                     Full_dataset_administered_test$PCR.frequency)
+Combined_dataset_administered_test$PCR.frequency <- gsub("semiweekly", "semi-weekly",
+                                                         Combined_dataset_administered_test$PCR.frequency)
+
+# Do the same for the sd of final data
+Full_dataset_administered_test$sd <- (Full_dataset_administered_test$sd/100)
+
+# Round Means for final data
+Full_dataset_administered_test$Proportion.infected <- round(Full_dataset_administered_test$Proportion.infected, 2)
+
+# Round Means for combined data
+Combined_dataset_administered_test$Percentage.infected <- round(Combined_dataset_administered_test$Percentage.infected, 2)
+
+# Check if succeeded
+Full_dataset_administered_test
+Combined_dataset_administered_test
+```
+
+### Create function to make table of effectsizes (Cohens' D)  
+```{r}
+Effectsize <- function(Network.size, R){
+
+# Creating data frame to store values in
+effectsize.table <- data.frame(Network_size = NA, Bubble_size = NA, PCR_frequency = NA, R = NA, Effect_size = NA,
+                               Magnitude = NA)
+
+
+# Specifying parameters for the for loop
+Network.size = c(Network.size)
+Bubble.size = c(5, 10, 25, 50, 'none')
+PCR.frequency = c("none", "workday", "semi-weekly", "weekly", "monthly")
+R = c(R)
+
+
+
+for (i in 1:length(Network.size)) {
+  for (j in 1:length(Bubble.size)) {
+    for (k in 1:length(PCR.frequency)) {
+      for (l in 1:length(R)) {
+        
+
+        w <- Network.size[i]
+        x <- Bubble.size[j]
+        y <- PCR.frequency[k]
+        z <- R[l]
+        
+                
+        # Get values of control condition 
+        control <- Combined_dataset_administered_test %>% 
+          filter(Network.size == w & PCR.frequency == "none" & Bubble.size == "none" & R == z)
+        
+        # store them
+        control <- control$Percentage.infected
+        
+        
+        # Get values of treatment condition
+        treatment <- Combined_dataset_administered_test %>%
+        filter(Network.size == w & Bubble.size == x & PCR.frequency == y & R == z)
+
+        # store them
+        treatment <- treatment$Percentage.infected
+        
+        # Calculate Cohens' D  
+        Effect_size = cohen.d(control, treatment)
+        
+        # Set all variables in data frame
+        x <- data.frame(Network_size = Network.size[i], Bubble_size = Bubble.size[j], PCR_frequency = PCR.frequency[k],
+                        R = R[l], Effect_size = Effect_size$estimate, Magnitude = Effect_size$magnitude)
+        
+        # Store it in combined data frame
+        effectsize.table <- rbind(effectsize.table, x)
+        }
+      }
+    }
+  }
+        # Show data frame without the NA row
+        effectsize.table <- na.omit(effectsize.table)
+        
+        # Round effectsize to 2 decimals
+        effectsize.table$Effect_size <- round(effectsize.table$Effect_size, 2)
+        
+        # Return effect size table
+        print(effectsize.table)
+
+}
+
+```
+
+### Loop to create effectsize table for administered test data 
+```{r}
+# Specify parameters
+Network.size = c(20, 50, 100, 250)
+R = c(1, 1.5, 2, 2.5)
+
+# Loop
+for (i in 1:length(Network.size)) {
+  for (j in 1:length(R)) {
+    Effectsize(Network.size = Network.size[i], R = R[j])
+  }
+}
+
+```
+
+### hypothesis:
+##  What is the impact of administered test data on the transmission of COVID-19 in the workplace?
+#   Does the frequency of testing matter (Refer to effectsizes)
+```{r}
+# Fitting the model
+mod <- glm(Proportion.infected ~ PCR.frequency, Full_dataset_administered_test, family = binomial(link = "logit"))
+
+
+# Calculate Pseudo R2 for the model
+pR2 = 1 - mod$deviance / mod$null.devianc
+pR2
+```
+
+
+#  Calculate Pseudo R2 for every network size and put data in a table
+#  plot the table
+```{r}
+# Values of Network size
+unique(Full_dataset_administered_test$Network.size)
+
+# Create empty table
+table <- data.frame(Network_size = NA, Pseudo_R2 = NA)
+
+# Implement here
+Network_size = c(20, 50, 100, 250)
+
+# Create loop to calculate psuedo R2 for every netsize
+for (i in 1:length(Network_size)) {
+  test <- Full_dataset_administered_test %>% filter(Network.size == Network_size[i])
+
+  # Fitting the model
+  mod <- glm(Proportion.infected ~ PCR.frequency, test, family = binomial(link = "logit"))
+
+  # Calculate Pseudo R2 for the model
+  pR2 = 1 - mod$deviance / mod$null.devianc
+  # Return value
+  print(pR2)
+  
+  
+  # Set all variables in data frame
+  x <- data.frame(Network_size = Network.size[i], Pseudo_R2 = pR2)
+        
+  # Store it in combined data frame
+  table <- rbind(table, x)
+}
+# Omit NA's
+table <- na.omit(table)
+table
+```
+
+
+# Plot 
+```{r, fig.height=6, fig.width=12}
+# Add column to differntiate between tests
+final_data_selftest$test <- 'self-administered'
+Full_dataset_administered_test$test <- 'expert-administered'
+
+# join dataframes
+combined_data <- rbind(final_data_selftest, Full_dataset_administered_test)
+# Set PCR frequency is right order for plot
+combined_data$PCR.frequency <- factor(combined_data$PCR.frequency, 
+                                      levels=c("workday", "semi-weekly", "weekly", "monthly"))
+
+combined_data <- combined_data %>% filter(PCR.frequency != "none")
+
+ggplot(combined_data, aes(x = Network.size, y = Proportion.infected, fill = factor(test))) +
+  stat_boxplot(geom ='errorbar') +
+  geom_boxplot() +
+  facet_wrap(vars(PCR.frequency), ncol = 5) +
+  labs(fill='Method of administration') +
+  theme(legend.position="top") +
+  scale_fill_manual(values = c("#99B898", "#FECEA8")) +
+  theme_bw() +
+  stat_summary(fun.y=mean, geom="point", aes(group=test), position=position_dodge(.9), 
+                size=2) +
+  labs(x = 'Network size', y = 'Proportion infected')
+  
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
